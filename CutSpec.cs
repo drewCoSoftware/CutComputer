@@ -28,10 +28,32 @@
         decimal kerf = Parts.Count * Program.KERF_WIDTH;
 
 
-        decimal res = NominalLength -  (usedSize + kerf);
+        decimal res = NominalLength - (usedSize + kerf);
         return res;
 
       }
+    }
+
+
+    /// <summary>
+    /// Return a list of all lengths that can be marked out on your board for easier cutting.
+    /// These measurements take the kerf of your cutting tool into account.
+    /// </summary>
+    internal List<decimal> GetCutMeasurements(decimal kerfWidth)
+    {
+
+      decimal current = 0.0m;
+      var res = new List<decimal>();
+
+      for (int i = 0; i < Parts.Count; ++i)
+      {
+        var p = Parts[i];
+        current += (p.Length + kerfWidth * Math.Sign(i));
+
+        res.Add(current);
+      }
+
+      return res;
     }
   }
 

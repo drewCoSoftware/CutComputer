@@ -1,9 +1,10 @@
-﻿using System.Xml.Linq;
+﻿using System.Net.Http.Headers;
+using System.Xml.Linq;
 
 namespace CutComputer
 {
 
-
+  // ============================================================================================================================
   internal class Program
   {
     /// <summary>
@@ -51,6 +52,10 @@ namespace CutComputer
       {
         var useParts = ConsolidateParts(spec);
 
+        if (index > 0)
+        {
+          Console.WriteLine("");
+        }
         Console.WriteLine($"Spec {index}:");
         Console.WriteLine($"Name\tLength\tQty");
         ++index;
@@ -60,9 +65,23 @@ namespace CutComputer
           Console.WriteLine($"{x.Name}\t{x.Length}\t{x.Quantity}");
         }
 
+        Console.WriteLine("");
+        Console.WriteLine($"Cut at: " + FormatCutMeasurements(spec.GetCutMeasurements(KERF_WIDTH)));
+        Console.WriteLine("");
+
+        Console.WriteLine("Scrap:");
+        Console.WriteLine(spec.AvailableLength);
+
 
       }
 
+    }
+
+    // --------------------------------------------------------------------------------------------------------------------------
+    private static string FormatCutMeasurements(List<decimal> cutMeasurements)
+    {
+      string res = string.Join(", ", cutMeasurements);
+      return res;
     }
 
     // --------------------------------------------------------------------------------------------------------------------------
