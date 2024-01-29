@@ -17,11 +17,158 @@ namespace CutComputer
     /// </summary>
     public const decimal KERF_WIDTH = 0.125m;
 
+    public const decimal SHEET_WIDTH = 48.0m;
+    public const decimal SHEET_HEIGHT = 96.0m;
+
+    public const decimal _2x4_WIDTH = 3.5m;
+    public const decimal _2x4_HEIGHT = 1.5m;
+
     // --------------------------------------------------------------------------------------------------------------------------
     static void Main(string[] args)
     {
       Console.WriteLine("Hello, World!");
 
+      // NOTE: Cut lists should be broken up into groups based on the nominal size.
+
+      // Theory:  What we are really doing is taking a n-dimensional chunk of material,
+      // and breaking it up smaller peices where n-1 dimensions are fixed.  Once we get it
+      // down to one free dimension we can create those cut lists:
+      // For example, i have a sheet of plywood.  it has w/l/h dimensinos.  Since one
+      // of those dimensions is fixed (thickness) we can then treat it like a 2-dimensional
+      // surface (3-1 = 2)
+      // From the 2d surface, we can cut it into "strips" which then fixes another dimension,
+      // which is the width.  So let's say a 10" strip from 1/2" ply.  Now I have a 'board'
+      // that is 10" x 96" (or 48, etc.) x 1/2" which I may cut parts out of, each of
+      // which have their own length.
+      // This is analogous to getting lengths from 2x4 lumber, which has its fixed dimensions
+      // of 1.5"x3/5" for its width/thickness(height).
+
+      var drawerParts = new List<PlywoodPart>()
+      {
+        new PlywoodPart("B,C,E Front/Back", 15,16.5m, 6),
+        new PlywoodPart("F Front/Back", 8.5m, 6, 2),
+        new PlywoodPart("D Front/Back", 8.5m,8, 2),
+        new PlywoodPart("A Front/Back", 10.5m,9, 2),
+
+        new PlywoodPart("B,C,E Sides", 16.5m, 26, 6),
+        new PlywoodPart("F Sides", 6,26, 2),
+        new PlywoodPart("D Sides", 8,26, 2),
+        new PlywoodPart("A Sides", 9,26, 2),
+
+        new PlywoodPart("B,C,E Face", 17,18, 3),
+        new PlywoodPart("F Face", 10.5m,7.5m, 1),
+        new PlywoodPart("D Face", 10.5m,7.5m, 1),
+        new PlywoodPart("A Face", 12.5m, 10.5m, 1),
+
+      };
+
+
+
+
+      var plywoodCuts = ComputeCutList(drawerParts);
+
+
+
+      ///      ComputeAndPrintCutList();
+
+    }
+
+
+
+    // --------------------------------------------------------------------------------------------------------------------------
+    /// <summary>
+    /// Given a number of plywood parts, this will determine how to cut them all out of full sheets
+    /// of plywood.
+    /// </summary>
+    private static List<SheetSpec> ComputeCutList(List<PlywoodPart> srcParts)
+    {
+      var res = new List<SheetSpec>();
+
+      //var toPlace = new List<PlywoodPart>();
+      //foreach (var part in srcParts) { toPlace.Add(part); }
+
+
+      Dictionary<decimal, List<PlywoodPart>> dimGroups = GroupByDimension(srcParts);
+      List<decimal> bySize = (from x in dimGroups.Keys select x).OrderByDescending(x => x).ToList();
+
+      // Beginning with the longest part, let's try to chop up a sheet.
+
+      foreach (var dim in bySize)
+      {
+        List<PlywoodPart> allParts = UngroupParts(dimGroups[dim]);
+
+        // Now that we have our list of parts by dimension, we need to determine
+        // how we can fit them onto our sheets.
+
+        int xxxxxx = 10;
+      }
+
+      int xx = 10;
+
+
+
+      // Each sheet of playwood needs to be cut into 'strips' or 'widths' which is analogus to us
+      // 'fixing' a dimensios.  It therefore behooves us to group our pieces by common dimensions....
+      // Each of these 'strips' can then be treated like a piece of
+      // dimensional lumber....
+
+
+      return res;
+    }
+
+    // --------------------------------------------------------------------------------------------------------------------------
+    /// <summary>
+    /// This will group parts by a common dimension so that sheets can more easily cut sheets
+    /// into strips.
+    /// </summary>
+    private static Dictionary<decimal, List<PlywoodPart>> GroupByDimension(List<PlywoodPart> parts)
+    {
+      // Create the groups of parts based on their longest dimensions..
+      var buckets = new Dictionary<decimal, List<PlywoodPart>>();
+      foreach (var p in parts)
+      {
+        decimal maxdim = Math.Max(p.Width, p.Length);
+        if (!buckets.TryGetValue(maxdim, out var partList))
+        {
+          partList = new List<PlywoodPart>();
+          buckets[maxdim] = partList;
+        }
+
+        partList.Add(p);
+      }
+
+      return buckets;
+    }
+
+    // --------------------------------------------------------------------------------------------------------------------------
+    /// <summary>
+    /// Returns a list of input parts where each part has a quantity of one.
+    /// For example, if the input list contains "Part A, qty 2", it will return a list that has
+    /// two instance of "Part A", each with a qty of 1.
+    /// </summary>
+    private static List<PlywoodPart> UngroupParts(List<PlywoodPart> parts)
+    {
+      var res = new List<PlywoodPart>();
+
+      foreach (var p in parts)
+      {
+        for (int i = 0; i < p.Quantity; i++)
+        {
+          res.Add(new PlywoodPart(p.Name, p.Width, p.Length, 1));
+        }
+      }
+      return res;
+    }
+
+    // --------------------------------------------------------------------------------------------------------------------------
+    /// <summary>
+    /// Example of how we might represent some parts to be created from  2x4s.
+    /// </summary>
+    private static void ComputeAndPrintCutList()
+    {
+      // The 'CutItems' listed here are 2x4.  It would be useful to be able to represent
+      // that in the data somehow.
+      // NOTE: 'CutItem' isn't really a great name....
       var cuts = new List<CutItem>()
       {
         new CutItem(58, 2),
@@ -40,9 +187,14 @@ namespace CutComputer
       int sum = (from x in cuts select x.Quantity).Sum();
       Console.WriteLine($"There are {sum} total pieces in the cut list!");
 
-
       CutList cutList = ComputeCutList(cuts);
 
+      PrintCutList(cutList);
+    }
+
+    // --------------------------------------------------------------------------------------------------------------------------
+    private static void PrintCutList(CutList cutList)
+    {
       Console.WriteLine("Cut List:");
       Console.WriteLine("----------------------");
       Console.WriteLine();
@@ -74,7 +226,6 @@ namespace CutComputer
 
 
       }
-
     }
 
     // --------------------------------------------------------------------------------------------------------------------------
@@ -92,7 +243,7 @@ namespace CutComputer
     {
       var res = new CutSpec()
       {
-        NominalLength = spec.NominalLength,
+        Length = spec.Length,
       };
       var used = new HashSet<CutItem>();
 
@@ -133,7 +284,6 @@ namespace CutComputer
     {
 
       // All of the items that we have already included in the final cut list....
-      var used = new HashSet<CutItem>();
       var toPlace = new List<CutItem>();
       foreach (var cut in cuts)
       {
