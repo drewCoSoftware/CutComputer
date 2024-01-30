@@ -4,50 +4,6 @@ namespace CutComputer
 {
 
   // ============================================================================================================================
-  /// <summary>
-  /// Represents how we will cut sheet of plywood into constituent parts.
-  /// This is like 'cutspec', but for a 2d object.
-  /// </summary>
-  public class SheetSpec
-  {
-    public decimal Width { get; set; } = Program.SHEET_WIDTH;
-    public decimal Height { get; set; } = Program.SHEET_HEIGHT;
-
-
-    /// <summary>
-    /// All of the current strips and their constituent parts that we are going to cut
-    /// this sheet into.
-    /// NOTE: Each strip may have available length,etc. in it.
-    /// NOTE: The order of the strips determines the available size of this sheet for
-    /// subsequent strips to be cut from.
-    /// For example, if the sheet is 48"x96" long, and we cut a 32" strip along its width,
-    /// then the remaining available size is 48"x64".  This means that we won't be able
-    /// to cut any length strips that are more than 64".
-    /// </summary>
-    public List<CutSpec> Strips { get; set; } = new List<CutSpec>();
-
-
-    /// <summary>
-    /// This determines if the given part can be cut from an existing strip on the sheet.
-    /// This is typically used to reduce waste / scrap as smaller parts can sometimes
-    /// fit.....
-    /// </summary>
-    /// <remarks>
-    /// This function doesn't really go into how the part can fit on the strip, just that it can.
-    /// </remarks>
-    public bool CanPartBeCutFromExistingStrip(PlywoodPart part)
-    {
-      foreach (CutSpec c in Strips)
-      {
-        if (c.CanFitPart(part)) { return true; }  
-      }
-
-      return false;
-    }
-
-  }
-
-  // ============================================================================================================================
   // NOTE: This class name isn't really correct, but for our example we are considering how to determine
   // how much plywood to buy and how to chop it up for a given set of parts.
   // The approach is similar to how we are doing 'CutSpec' for 2x4s
@@ -69,6 +25,19 @@ namespace CutComputer
       Quantity = quantity_;
     }
 
+    // --------------------------------------------------------------------------------------------------------------------------
+    /// <summary>
+    /// This 'rotates' the part by 90 degrees.
+    /// The effect is that the length and width are swapped.
+    /// If we ever care about grain direction, this will have some implications
+    /// as well.
+    /// </summary>
+    internal void Rotate90()
+    {
+      var w = this.Width;
+      this.Width = this.Length;
+      this.Length = w;
+    }
   }
 
 
@@ -107,7 +76,7 @@ namespace CutComputer
 
     public ECutOrientation CutOrientation { get; set; } = ECutOrientation.None;
 
-    public List<CutItem> Parts { get; set; } = new List<CutItem>();
+    public List<CutItem> Cuts { get; set; } = new List<CutItem>();
 
     /// <summary>
     /// The amount of material that is still avaialable for cuts.
@@ -117,13 +86,13 @@ namespace CutComputer
     {
       get
       {
-        decimal usedSize = (from x in Parts select x.Length).Sum();
+        decimal usedSize = (from x in Cuts select x.Length).Sum();
 
         // NOTE: Include kerfs....
         // NOTE: If the piece is perfectly sized, then we will have one less kerf.
         // We are not accounting for this scenario at this time since it is pretty rare in practice.
         // NOTE: We also aren't counting dust cuts, which should be optional (and their size should be optional too)
-        decimal kerf = Parts.Count * Program.KERF_WIDTH;
+        decimal kerf = Cuts.Count * Program.KERF_WIDTH;
 
 
         decimal res = Length - (usedSize + kerf);
@@ -133,7 +102,36 @@ namespace CutComputer
     }
 
     // --------------------------------------------------------------------------------------------------------------------------
-    internal bool CanFitPart(PlywoodPart part)
+    /// <summary>
+    /// Add the given part to this spec.
+    /// This function will attempt to minimize the amount of waste.
+    /// </summary>
+    public bool AddPart(PlywoodPart part)
+    {
+      if (!CanFitPart(part)) { return false; }
+
+      // Minimize the length of the cut.
+      if (part.Length < part.Width)
+      {
+        if (this.Width >= part.Width)
+        {
+          Cuts.Add(new CutItem(part.Length, part.Width));
+          return true;
+        }
+      }
+
+      // The width of the part is less or equal to the length...
+      // NOTE: This part is technically oriented by 90 degrees...
+      // If we have to take grain considerations into account, this
+      // will matter.
+      Cuts.Add(new CutItem(part.Width, part.Length));
+      return true;
+
+
+    }
+
+    // --------------------------------------------------------------------------------------------------------------------------
+    public bool CanFitPart(PlywoodPart part)
     {
       // If the width or length of the part exceeds both dimensions of this spec,
       // then it can't fit!
@@ -161,9 +159,9 @@ namespace CutComputer
       decimal current = 0.0m;
       var res = new List<decimal>();
 
-      for (int i = 0; i < Parts.Count; ++i)
+      for (int i = 0; i < Cuts.Count; ++i)
       {
-        var p = Parts[i];
+        var p = Cuts[i];
         current += (p.Length + kerfWidth * Math.Sign(i));
 
         res.Add(current);

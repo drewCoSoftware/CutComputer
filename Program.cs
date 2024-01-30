@@ -5,7 +5,7 @@ namespace CutComputer
 {
 
   // ============================================================================================================================
-  internal class Program
+  internal partial class Program
   {
     /// <summary>
     /// Nominal length of a dimensional 2x4
@@ -18,7 +18,7 @@ namespace CutComputer
     public const decimal KERF_WIDTH = 0.125m;
 
     public const decimal SHEET_WIDTH = 48.0m;
-    public const decimal SHEET_HEIGHT = 96.0m;
+    public const decimal SHEET_LENGTH = 96.0m;
 
     public const decimal _2x4_WIDTH = 3.5m;
     public const decimal _2x4_HEIGHT = 1.5m;
@@ -84,26 +84,43 @@ namespace CutComputer
     {
       var res = new List<SheetSpec>();
 
-      //var toPlace = new List<PlywoodPart>();
-      //foreach (var part in srcParts) { toPlace.Add(part); }
-
-
       Dictionary<decimal, List<PlywoodPart>> dimGroups = GroupByDimension(srcParts);
       List<decimal> bySize = (from x in dimGroups.Keys select x).OrderByDescending(x => x).ToList();
 
       // Beginning with the longest part, let's try to chop up a sheet.
-
       foreach (var dim in bySize)
       {
         List<PlywoodPart> allParts = UngroupParts(dimGroups[dim]);
 
+        var used = new HashSet<PlywoodPart>();
+
         // Now that we have our list of parts by dimension, we need to determine
         // how we can fit them onto our sheets.
+        foreach (var p in allParts)
+        {
+          foreach (var spec in res)
+          {
+            if (spec.AddPartToExistingStrip(p))
+            {
+              used.Add(p);
+              break;
+            }
+          }
+        }
 
-        int xxxxxx = 10;
+        // Remove all used parts.
+        foreach (var usedPart in used)
+        {
+          allParts.Remove(usedPart);
+        }
+
+        // If there are any remaining parts, we have to find a way to fit them
+        // onto existing specs by creating new strips, or adding new specs (sheets).
+        if (allParts.Count > 0)
+        {
+          PlaceParts(res, allParts);
+        }
       }
-
-      int xx = 10;
 
 
 
@@ -112,6 +129,112 @@ namespace CutComputer
       // Each of these 'strips' can then be treated like a piece of
       // dimensional lumber....
 
+
+      return res;
+    }
+
+    // --------------------------------------------------------------------------------------------------------------------------
+    /// <summary>
+    /// NOTE: All of the parts have a common dimension, length.
+    /// </summary>
+    private static void PlaceParts(List<SheetSpec> currentSpecs, List<PlywoodPart> toPlace)
+    {
+      var lengths = (from x in toPlace
+                     select x.Length).Distinct().ToArray();
+
+      if (lengths.Length > 1)
+      {
+        throw new InvalidOperationException("Orient the parts so they all have the same length!");
+      }
+      decimal stripSize = lengths[0];
+
+      //// We need to have a sorted set of widths too.
+      //SortByWidths(toPlace);
+
+
+      // From the existing specs, we need to see if it is possible to cut a strip that
+      // can fit one or more of the parts.
+      var usedParts = new HashSet<PlywoodPart>();
+      var usedSpecs = new HashSet<SheetSpec>();
+
+      // Select a spec to use:
+      SheetSpecSelection? useSpec = null;
+      decimal maxSize = 0.0m;
+      foreach (var spec in currentSpecs)
+      {
+        var sel = ComputeSheetSelection(spec, stripSize);
+
+        if (sel.AvailableSize > maxSize)
+        {
+          maxSize = sel.AvailableSize;
+          useSpec = sel;
+        }
+      }
+
+      // NOTE: Even if we find the best spec to use, we may not
+      // be able to place all of the parts....
+      // In that case we would loop over all of the specs until we either place all of the parts,
+      // or we run out of specs.
+      if (useSpec == null)
+      {
+        // We could not find a spec, so we will add a new one....
+        var spec = new SheetSpec();
+        useSpec = ComputeSheetSelection(spec, stripSize);
+        currentSpecs.Add(spec);
+      }
+
+      foreach (var part in toPlace)
+      {
+        bool canAdd = useSpec.Spec.CanAddPartToExistingStrip(part);
+        if (!canAdd)
+        {
+          // We need to make a new strip!
+          bool created = useSpec.Spec.CreateStrip(stripSize, useSpec.Orientation);
+          if (!created)
+          {
+            // We are all done with placing parts on this spec...
+            break;
+          }
+        }
+
+        bool added = useSpec.Spec.AddPartToExistingStrip(part);
+
+        // NOTE: We should not be in a place where we can't add a part....
+        if (!added) { throw new InvalidOperationException("A part could not be added to the spec!  Something went wrong!"); }
+        usedParts.Add(part);
+      }
+
+      if (usedParts.Count > 0)
+      {
+        usedSpecs.Add(useSpec.Spec);
+        foreach (var item in usedParts)
+        {
+          toPlace.Remove(item);
+        }
+        usedParts.Clear();
+      }
+
+    }
+
+    // --------------------------------------------------------------------------------------------------------------------------
+    private static SheetSpecSelection ComputeSheetSelection(SheetSpec spec, decimal stripSize)
+    {
+      // How many strips can we cut in the length direction?
+      int itemsPerWidthStrip = (int)Math.Floor(spec.AvailableWidth / stripSize);
+      decimal sizeByWidth = itemsPerWidthStrip * spec.AvailableLength;
+
+      // What if we tile width-wise?
+      int itemsByLengthStrip = (int)Math.Floor(spec.AvailableLength / stripSize);
+      decimal sizeByLength = itemsByLengthStrip * spec.AvailableWidth;
+
+      decimal maxSize = Math.Max(sizeByWidth, sizeByLength);
+      var res = new SheetSpecSelection()
+      {
+        Spec = spec,
+        AvailableSize = maxSize,
+        Orientation = sizeByWidth > sizeByLength ? ECutOrientation.Length : ECutOrientation.Width,
+        StripCount = sizeByWidth > sizeByLength ?   itemsPerWidthStrip : itemsByLengthStrip
+      };
 
       return res;
     }
@@ -134,6 +257,10 @@ namespace CutComputer
           buckets[maxdim] = partList;
         }
 
+        // We want to orient all of the parts so that length is the max
+        // dimension.  This is to make downstream operations a bit easier
+        // to deal with.
+        if (p.Width > p.Length) { p.Rotate90(); }
         partList.Add(p);
       }
 
@@ -212,7 +339,7 @@ namespace CutComputer
         Console.WriteLine($"Name\tLength\tQty");
         ++index;
 
-        foreach (var x in useParts.Parts)
+        foreach (var x in useParts.Cuts)
         {
           Console.WriteLine($"{x.Name}\t{x.Length}\t{x.Quantity}");
         }
@@ -249,13 +376,13 @@ namespace CutComputer
 
       // We want to group all of the parts together....
       // NOTE: This algo isn't super efficient and loops over used items many, many times.
-      foreach (var x in spec.Parts)
+      foreach (var x in spec.Cuts)
       {
         if (used.Contains(x)) { continue; }
         used.Add(x);
 
         int useCount = x.Quantity;
-        foreach (var y in spec.Parts)
+        foreach (var y in spec.Cuts)
         {
           if (used.Contains(y)) { continue; }
           if (y.Name == x.Name && y.Length == x.Length)
@@ -265,7 +392,7 @@ namespace CutComputer
           }
         }
 
-        res.Parts.Add(new CutItem(x.Length, useCount)
+        res.Cuts.Add(new CutItem(x.Length, useCount)
         {
           Name = x.Name
         });
@@ -290,7 +417,7 @@ namespace CutComputer
         // Decompose....
         for (int i = 0; i < cut.Quantity; i++)
         {
-          toPlace.Add(new CutItem(cut.Length));
+          toPlace.Add(new CutItem(cut.Length, cut.Width));
         }
       }
       var specList = new List<CutSpec>();
@@ -311,7 +438,7 @@ namespace CutComputer
           if (a.AvailableLength >= item.Length)
           {
             found = true;
-            a.Parts.Add(item);
+            a.Cuts.Add(item);
 
             //            used.Add(item);
             break;
@@ -322,7 +449,7 @@ namespace CutComputer
         {
           // Add a new board!
           var board = new CutSpec();
-          board.Parts.Add(item);
+          board.Cuts.Add(item);
           specList.Add(board);
         }
 
@@ -356,15 +483,24 @@ namespace CutComputer
   public class CutItem
   {
     // --------------------------------------------------------------------------------------------------------------------------
-    public CutItem(decimal length, int count = 1)
+    public CutItem(decimal length_, decimal width_, int qty_ = 1)
     {
-      this.Length = length;
-      this.Quantity = count;
+      Length = length_;
+      Width = width_;
+      Quantity = qty_;
     }
+
+    //// --------------------------------------------------------------------------------------------------------------------------
+    //public CutItem(decimal length, int count = 1)
+    //{
+    //  this.Length = length;
+    //  this.Quantity = count;
+    //}
 
     public string? Name { get; set; } = null;
     public int Quantity { get; set; } = 1;
     public decimal Length { get; set; }
+    public decimal Width { get; set; }
   }
 
 }
