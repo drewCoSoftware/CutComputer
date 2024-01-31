@@ -57,7 +57,7 @@
               Width = stripSize,
             });
 
-            this.AvailableLength -= stripSize;
+            this.AvailableLength -= (stripSize + Program.KERF_WIDTH);
             return this.Strips[this.Strips.Count - 1];
           }
           break;
@@ -72,7 +72,7 @@
               Width = stripSize,
             });
 
-            this.AvailableWidth -= stripSize;
+            this.AvailableWidth -= (stripSize + Program.KERF_WIDTH);
             return this.Strips[this.Strips.Count - 1];
           }
           break;

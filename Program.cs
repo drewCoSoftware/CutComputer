@@ -67,9 +67,11 @@ namespace CutComputer
 
       var plywoodCuts = ComputeCutList(drawerParts);
 
+      // TODO: A way to print the cuts lists for plywood.
 
-
-      ///      ComputeAndPrintCutList();
+      // SUPER TODO:
+      // Leverage ShapeEngine or similar to create an interactive display!
+      // --> Side note... could ShapeEngine data/code be applied to HTML/TS?
 
     }
 
@@ -94,43 +96,6 @@ namespace CutComputer
 
         PlaceParts(res, allParts);
       }
-      //  var used = new HashSet<PlywoodPart>();
-
-      //  // Now that we have our list of parts by dimension, we need to determine
-      //  // how we can fit them onto our sheets.
-      //  foreach (var p in allParts)
-      //  {
-      //    foreach (var spec in res)
-      //    {
-      //      if (spec.AddPartToExistingStrip(p))
-      //      {
-      //        used.Add(p);
-      //        break;
-      //      }
-      //    }
-      //  }
-
-      //  // Remove all used parts.
-      //  foreach (var usedPart in used)
-      //  {
-      //    allParts.Remove(usedPart);
-      //  }
-
-      //  // If there are any remaining parts, we have to find a way to fit them
-      //  // onto existing specs by creating new strips, or adding new specs (sheets).
-      //  if (allParts.Count > 0)
-      //  {
-      //    PlaceParts(res, allParts);
-      //  }
-      //}
-
-
-
-      // Each sheet of playwood needs to be cut into 'strips' or 'widths' which is analogus to us
-      // 'fixing' a dimensios.  It therefore behooves us to group our pieces by common dimensions....
-      // Each of these 'strips' can then be treated like a piece of
-      // dimensional lumber....
-
 
       return res;
     }
@@ -139,85 +104,128 @@ namespace CutComputer
     /// <summary>
     /// NOTE: All of the parts should have a common dimension, length.
     /// </summary>
-    private static void PlaceParts(List<SheetSpec> currentSpecs, List<PlywoodPart> toPlace)
+    private static void PlaceParts(List<SheetSpec> allSheets, List<PlywoodPart> toPlace)
     {
+      decimal stripSize = ValidateLengths(toPlace);
+
+
+      // Step 1.  Hunt through the existing sheets to see if we can fit any
+      // of the parts.  If so, great!  If not, we will proceed.
+      var usedParts = new HashSet<PlywoodPart>();
+
+      foreach (var sheet in allSheets)
+      {
+        foreach (var p in toPlace)
+        {
+          if (sheet.AddPartToExistingStrip(p))
+          {
+            usedParts.Add(p);
+            break;
+          }
+        }
+      }
+      toPlace.RemoveAll(x => usedParts.Contains(x));
+
+
+      // Step 2. We need to create a new strip on an existing sheet
+      // to accommodate the parts.
+      while (toPlace.Count > 0)
+      {
+        usedParts.Clear();
+
+        CutSpec? curSpec = null;
+        foreach (var sheet in allSheets)
+        {
+          // NOTE: This code can be combined with step one.....
+          // Add whatever parts we can, and 
+          // NOTE: This code can be converted into something more like
+          // 'sheet.createoptimalstrip()'.  Such a function could be
+          // sensitive to orientation / grain direction too.
+          var sel = ComputeSheetSelection(sheet, stripSize);
+          if (sel.StripCount > 0)
+          {
+            if (AnyPartFits(toPlace, sel))
+            {
+              // NOTE: We still need to check to see if any of the parts can actually fit onto the strip before we create it!
+              curSpec = sheet.CreateStrip(stripSize, sel.Orientation);
+              break;
+            }
+          }
+        }
+
+        if (curSpec == null)
+        {
+          // No sheet can accommodate a strip can can fit any of the parts.
+          // We will have to go on and create a new sheet to use.
+          break;
+        }
+
+        // Add as many parts as we can to the strip...
+        foreach (var p in toPlace)
+        {
+          // This will effectively fit at least one part on the strip.
+          // We could optimize it so that it has as little waste as
+          // possible, but that is a math problem for another day.
+          if (curSpec.AddPart(p))
+          {
+            usedParts.Add(p);
+          }
+        }
+        toPlace.RemoveAll(x => usedParts.Contains(x));
+      }
+
+
+      // Step 3.  If there are any parts left to place, we need to create a new
+      // sheet.  We will then call this function recursively until all of the parts
+      // are placed.
+      // The new sheet is placed at the beginning of the list so that we
+      if (toPlace.Count > 0)
+      {
+        var newSheet = new SheetSpec();
+        var useSheets = new List<SheetSpec>() { newSheet };
+
+        // Recursive call....
+        PlaceParts(useSheets, toPlace);
+
+        // Append the created sheets to the final set...
+        allSheets.AddRange(useSheets);
+      }
+
+    }
+
+    // ------------------------------------------------------------------------------------
+    private static decimal ValidateLengths(List<PlywoodPart> toPlace)
+    {
+      if (toPlace.Count == 0)
+      {
+        throw new InvalidOperationException("Please provide at least one part!");
+      }
+
       var lengths = (from x in toPlace
                      select x.Length).Distinct().ToArray();
-
       if (lengths.Length > 1)
       {
         throw new InvalidOperationException("Orient the parts so they all have the same length!");
       }
-      decimal stripSize = lengths[0];
 
-      //// We need to have a sorted set of widths too.
-      //SortByWidths(toPlace);
+      return lengths[0];
+    }
 
-
-      // From the existing specs, we need to see if it is possible to cut a strip that
-      // can fit one or more of the parts.
-      var usedParts = new HashSet<PlywoodPart>();
-      var usedSpecs = new HashSet<SheetSpec>();
-
-      // Select a spec to use:
-      SheetSpecSelection? useSpec = null;
-      decimal maxSize = 0.0m;
-      foreach (var spec in currentSpecs)
+    // ------------------------------------------------------------------------------------
+    private static bool AnyPartFits(List<PlywoodPart> toPlace, SheetSpecSelection sel)
+    {
+      return toPlace.Any(x =>
       {
-        var sel = ComputeSheetSelection(spec, stripSize);
-
-        if (sel.AvailableSize > maxSize)
+        switch (sel.Orientation)
         {
-          maxSize = sel.AvailableSize;
-          useSpec = sel;
+          case ECutOrientation.Width:
+            return x.Length <= sel.AvailableSize;
+          case ECutOrientation.Length:
+            return x.Width <= sel.AvailableSize;
+          default:
+            throw new NotSupportedException($"Unsupported orientation: {sel.Orientation}!");
         }
-      }
-
-      // NOTE: Even if we find the best spec to use, we may not
-      // be able to place all of the parts....
-      // In that case we would loop over all of the specs until we either place all of the parts,
-      // or we run out of specs.
-      if (useSpec == null)
-      {
-        // We could not find a spec, so we will add a new one....
-        var spec = new SheetSpec();
-        useSpec = ComputeSheetSelection(spec, stripSize);
-        currentSpecs.Add(spec);
-      }
-
-      CutSpec? curStrip = null;
-      foreach (var part in toPlace)
-      {
-        if (curStrip == null || !curStrip.CanFitPart(part))
-        {
-          curStrip = useSpec.Spec.CreateStrip(stripSize, useSpec.Orientation);
-          if (curStrip == null)
-          {
-            // We are all done with placing parts on this spec...
-            break;
-          }
-        }
-
-        // We might have better luck by keeping track of the current
-        // strip in the spec.  That way we can more easily determine
-        // if a given part will fit on it.....
-        bool added = curStrip.AddPart(part);
-
-        // NOTE: We should not be in a place where we can't add a part....
-        if (!added) { throw new InvalidOperationException("A part could not be added to the spec!  Something went wrong!"); }
-        usedParts.Add(part);
-      }
-
-      if (usedParts.Count > 0)
-      {
-        usedSpecs.Add(useSpec.Spec);
-        foreach (var item in usedParts)
-        {
-          toPlace.Remove(item);
-        }
-        usedParts.Clear();
-      }
-
+      });
     }
 
     // --------------------------------------------------------------------------------------------------------------------------
@@ -237,7 +245,7 @@ namespace CutComputer
         Spec = spec,
         AvailableSize = maxSize,
         Orientation = sizeByWidth > sizeByLength ? ECutOrientation.Length : ECutOrientation.Width,
-        StripCount = sizeByWidth > sizeByLength ?   itemsPerWidthStrip : itemsByLengthStrip
+        StripCount = sizeByWidth > sizeByLength ? itemsPerWidthStrip : itemsByLengthStrip
       };
 
       return res;
@@ -487,19 +495,13 @@ namespace CutComputer
   public class CutItem
   {
     // --------------------------------------------------------------------------------------------------------------------------
-    public CutItem(decimal length_, decimal width_, int qty_ = 1)
+    public CutItem(decimal length_, decimal width_, string name_ = null, int qty_ = 1)
     {
       Length = length_;
       Width = width_;
+      Name = name_;
       Quantity = qty_;
     }
-
-    //// --------------------------------------------------------------------------------------------------------------------------
-    //public CutItem(decimal length, int count = 1)
-    //{
-    //  this.Length = length;
-    //  this.Quantity = count;
-    //}
 
     public string? Name { get; set; } = null;
     public int Quantity { get; set; } = 1;

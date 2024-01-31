@@ -1,4 +1,5 @@
-﻿using System.Net.NetworkInformation;
+﻿using System.Diagnostics;
+using System.Net.NetworkInformation;
 
 namespace CutComputer
 {
@@ -68,6 +69,7 @@ namespace CutComputer
   /// </summary>
   /// NOTE: Not really sure about this name.... we are describing essentially a piece of lumber (material) that will be cut
   /// into lengths...
+  [DebuggerDisplay("{Length}x{Width} ({CutOrientation})")]
   public class CutSpec
   {
     public decimal Length { get; set; } = Program.NOMINAL_LENGTH;
@@ -115,7 +117,7 @@ namespace CutComputer
       {
         if (this.Width >= part.Width)
         {
-          Cuts.Add(new CutItem(part.Length, part.Width));
+          Cuts.Add(new CutItem(part.Length, part.Width, part.Name));
           return true;
         }
       }
@@ -124,7 +126,7 @@ namespace CutComputer
       // NOTE: This part is technically oriented by 90 degrees...
       // If we have to take grain considerations into account, this
       // will matter.
-      Cuts.Add(new CutItem(part.Width, part.Length));
+      Cuts.Add(new CutItem(part.Width, part.Length, part.Name));
       return true;
 
 
