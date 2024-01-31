@@ -1,5 +1,7 @@
 ﻿using System.Net.Http.Headers;
+using System.Security.Cryptography;
 using System.Xml.Linq;
+using static CutComputer.Program;
 
 namespace CutComputer
 {
@@ -64,15 +66,53 @@ namespace CutComputer
 
 
 
-
+      // NOTE: If we had some exsting bits of plywood, we could pass them
+      // into the function for consideration in the search space.
+      // Flagging them ahead of time as 'scrap' would be useful in an organizational sense.
       var plywoodCuts = ComputeCutList(drawerParts);
-
-      // TODO: A way to print the cuts lists for plywood.
+      PrintCutList(plywoodCuts);
 
       // SUPER TODO:
       // Leverage ShapeEngine or similar to create an interactive display!
       // --> Side note... could ShapeEngine data/code be applied to HTML/TS?
 
+    }
+
+    // --------------------------------------------------------------------------------------------------------------------------
+    private static void PrintCutList(List<SheetSpec> sheetSpecs)
+    {
+      int index = 0;
+      foreach (var s in sheetSpecs)
+      {
+        ++index;
+        Console.WriteLine($"Sheet #{index}:");
+        Console.WriteLine("-------------------------------------");
+
+        Console.WriteLine();
+        Console.WriteLine("Strips:");
+        foreach (var strip in s.Strips)
+        {
+          string fmt = null;
+          switch (strip.CutOrientation)
+          {
+            case ECutOrientation.Width:
+              fmt = $"(W) {strip.Width}";
+              break;
+            case ECutOrientation.Length:
+              fmt = $"(L) {strip.Width}";
+              break;
+            default:
+              throw new ArgumentOutOfRangeException("Unsupported orientation!");
+          }
+          Console.WriteLine(fmt);
+
+          // Now show all of the cuts that we will make from the strip...
+          string sizes = string.Join(", ", (from x in strip.Cuts select x.Length));
+          Console.WriteLine($"\t{sizes}");
+
+        }
+
+      }
     }
 
 
