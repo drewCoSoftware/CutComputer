@@ -92,35 +92,37 @@ namespace CutComputer
       {
         List<PlywoodPart> allParts = UngroupParts(dimGroups[dim]);
 
-        var used = new HashSet<PlywoodPart>();
-
-        // Now that we have our list of parts by dimension, we need to determine
-        // how we can fit them onto our sheets.
-        foreach (var p in allParts)
-        {
-          foreach (var spec in res)
-          {
-            if (spec.AddPartToExistingStrip(p))
-            {
-              used.Add(p);
-              break;
-            }
-          }
-        }
-
-        // Remove all used parts.
-        foreach (var usedPart in used)
-        {
-          allParts.Remove(usedPart);
-        }
-
-        // If there are any remaining parts, we have to find a way to fit them
-        // onto existing specs by creating new strips, or adding new specs (sheets).
-        if (allParts.Count > 0)
-        {
-          PlaceParts(res, allParts);
-        }
+        PlaceParts(res, allParts);
       }
+      //  var used = new HashSet<PlywoodPart>();
+
+      //  // Now that we have our list of parts by dimension, we need to determine
+      //  // how we can fit them onto our sheets.
+      //  foreach (var p in allParts)
+      //  {
+      //    foreach (var spec in res)
+      //    {
+      //      if (spec.AddPartToExistingStrip(p))
+      //      {
+      //        used.Add(p);
+      //        break;
+      //      }
+      //    }
+      //  }
+
+      //  // Remove all used parts.
+      //  foreach (var usedPart in used)
+      //  {
+      //    allParts.Remove(usedPart);
+      //  }
+
+      //  // If there are any remaining parts, we have to find a way to fit them
+      //  // onto existing specs by creating new strips, or adding new specs (sheets).
+      //  if (allParts.Count > 0)
+      //  {
+      //    PlaceParts(res, allParts);
+      //  }
+      //}
 
 
 
@@ -135,7 +137,7 @@ namespace CutComputer
 
     // --------------------------------------------------------------------------------------------------------------------------
     /// <summary>
-    /// NOTE: All of the parts have a common dimension, length.
+    /// NOTE: All of the parts should have a common dimension, length.
     /// </summary>
     private static void PlaceParts(List<SheetSpec> currentSpecs, List<PlywoodPart> toPlace)
     {
@@ -183,21 +185,23 @@ namespace CutComputer
         currentSpecs.Add(spec);
       }
 
+      CutSpec? curStrip = null;
       foreach (var part in toPlace)
       {
-        bool canAdd = useSpec.Spec.CanAddPartToExistingStrip(part);
-        if (!canAdd)
+        if (curStrip == null || !curStrip.CanFitPart(part))
         {
-          // We need to make a new strip!
-          bool created = useSpec.Spec.CreateStrip(stripSize, useSpec.Orientation);
-          if (!created)
+          curStrip = useSpec.Spec.CreateStrip(stripSize, useSpec.Orientation);
+          if (curStrip == null)
           {
             // We are all done with placing parts on this spec...
             break;
           }
         }
 
-        bool added = useSpec.Spec.AddPartToExistingStrip(part);
+        // We might have better luck by keeping track of the current
+        // strip in the spec.  That way we can more easily determine
+        // if a given part will fit on it.....
+        bool added = curStrip.AddPart(part);
 
         // NOTE: We should not be in a place where we can't add a part....
         if (!added) { throw new InvalidOperationException("A part could not be added to the spec!  Something went wrong!"); }

@@ -39,7 +39,11 @@
 
 
     // --------------------------------------------------------------------------------
-    public bool CreateStrip(decimal stripSize, ECutOrientation orientation)
+    /// <summary>
+    /// Attempt to create a strip using the given data.
+    /// If successful, a reference to it is returned, null otherwise.
+    /// </summary>
+    public CutSpec? CreateStrip(decimal stripSize, ECutOrientation orientation)
     {
       switch (orientation)
       {
@@ -54,7 +58,7 @@
             });
 
             this.AvailableLength -= stripSize;
-            return true;
+            return this.Strips[this.Strips.Count - 1];
           }
           break;
 
@@ -69,7 +73,7 @@
             });
 
             this.AvailableWidth -= stripSize;
-            return true;
+            return this.Strips[this.Strips.Count - 1];
           }
           break;
 
@@ -78,45 +82,45 @@
       }
 
       // Can't do it!
+      return null;
+    }
+
+
+    // --------------------------------------------------------------------------------
+    /// <summary>
+    /// This determines if the given part can be cut from an existing strip on the sheet.
+    /// This is typically used to reduce waste / scrap as smaller parts can sometimes
+    /// fit.....
+    /// </summary>
+    /// <remarks>
+    /// This function doesn't really go into how the part can fit on the strip, just that it can.
+    /// </remarks>
+    public bool CanAddPartToExistingStrip(PlywoodPart part)
+    {
+      foreach (CutSpec c in Strips)
+      {
+        if (c.CanFitPart(part)) { return true; }
+      }
+
       return false;
     }
 
-  
-  // --------------------------------------------------------------------------------
-  /// <summary>
-  /// This determines if the given part can be cut from an existing strip on the sheet.
-  /// This is typically used to reduce waste / scrap as smaller parts can sometimes
-  /// fit.....
-  /// </summary>
-  /// <remarks>
-  /// This function doesn't really go into how the part can fit on the strip, just that it can.
-  /// </remarks>
-  public bool CanAddPartToExistingStrip(PlywoodPart part)
-  {
-    foreach (CutSpec c in Strips)
+
+    // --------------------------------------------------------------------------------
+    public bool AddPartToExistingStrip(PlywoodPart part)
     {
-      if (c.CanFitPart(part)) { return true; }
-    }
-
-    return false;
-  }
-
-
-  // --------------------------------------------------------------------------------
-  public bool AddPartToExistingStrip(PlywoodPart part)
-  {
-    foreach (var c in Strips)
-    {
-      if (c.CanFitPart(part))
+      foreach (var c in Strips)
       {
-        c.AddPart(part);
-        return true;
+        if (c.CanFitPart(part))
+        {
+          c.AddPart(part);
+          return true;
+        }
       }
+
+      return false;
     }
 
-    return false;
   }
-
-}
 
 }

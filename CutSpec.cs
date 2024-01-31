@@ -133,22 +133,22 @@ namespace CutComputer
     // --------------------------------------------------------------------------------------------------------------------------
     public bool CanFitPart(PlywoodPart part)
     {
-      // If the width or length of the part exceeds both dimensions of this spec,
-      // then it can't fit!
-      if (part.Width > AvailableLength && part.Width > Width)
+      // A part can fit if BOTH of its dimensions can fit in the available space
+      // of this sheet.
+      if (part.Length <= this.AvailableLength && part.Width <= this.Width)
       {
-        return false;
+        return true;
       }
-      if (part.Length > AvailableLength && part.Length > Width)
+      if (part.Length <= this.Width && part.Width <= this.AvailableLength)
       {
-        return false;
+        return true;
       }
+      return false;
 
-      return true;
-      throw new NotImplementedException();
     }
 
 
+    // ---------------------------------------------------------------------------
     /// <summary>
     /// Return a list of all lengths that can be marked out on your board for easier cutting.
     /// These measurements take the kerf of your cutting tool into account.
