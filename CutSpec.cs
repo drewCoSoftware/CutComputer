@@ -1,5 +1,7 @@
-﻿using System.Diagnostics;
+﻿using drewCo.Tools;
+using System.Diagnostics;
 using System.Net.NetworkInformation;
+using System.Runtime.Serialization;
 
 namespace CutComputer
 {

@@ -1,4 +1,5 @@
-﻿using System.Net.Http.Headers;
+﻿using drewCo.Tools;
+using System.Net.Http.Headers;
 using System.Security.Cryptography;
 using System.Xml.Linq;
 using static CutComputer.Program;
@@ -116,22 +117,19 @@ namespace CutComputer
           Console.WriteLine(fmt);
           Console.WriteLine("--------------------------------");
 
+          var formatter = new TextFormatter();
+
           // Print all of the parts for a given strip....
           foreach (var c in strip.Cuts)
           {
             ++partNumber;
-            string line = $"{partNumber}: {c.Name}: \t{c.Length}\t{c.Width}";
-            if (c.Width != strip.Width)
-            {
-              line += " *";
-            }
-            Console.WriteLine(line);
+
+            string star = (c.Width != strip.Width) ? " *" : string.Empty;
+            formatter.AddLine($"{partNumber}:", c.Name, c.Length, c.Width + star);
           }
 
-          //// Now show all of the cuts that we will make from the strip...
-          //string sizes = string.Join(", ", (from x in strip.Cuts select x.Length));
-          //Console.WriteLine($"\t{sizes}");
-
+          string partsList = formatter.Print();
+          Console.Write(partsList);
         }
 
       }
@@ -537,6 +535,7 @@ namespace CutComputer
 
     }
   }
+
 
   // ============================================================================================================================
   public class CutList
