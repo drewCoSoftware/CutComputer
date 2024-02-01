@@ -82,7 +82,6 @@ namespace CutComputer
     // --------------------------------------------------------------------------------------------------------------------------
     private static void PrintCutList(List<SheetSpec> sheetSpecs)
     {
-      const string TAB = "   ";
       int partNumber = 0;
 
       int index = 0;
