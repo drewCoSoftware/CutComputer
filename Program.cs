@@ -81,34 +81,56 @@ namespace CutComputer
     // --------------------------------------------------------------------------------------------------------------------------
     private static void PrintCutList(List<SheetSpec> sheetSpecs)
     {
+      const string TAB = "   ";
+      int partNumber = 0;
+
       int index = 0;
       foreach (var s in sheetSpecs)
       {
         ++index;
+
         Console.WriteLine($"Sheet #{index}:");
         Console.WriteLine("-------------------------------------");
 
         Console.WriteLine();
         Console.WriteLine("Strips:");
+
+        int stripNumber = 0;
         foreach (var strip in s.Strips)
         {
+          ++stripNumber;
+          Console.WriteLine();
+
           string fmt = null;
           switch (strip.CutOrientation)
           {
             case ECutOrientation.Width:
-              fmt = $"(W) {strip.Width}";
+              fmt = $"Strip {stripNumber}: (W) {strip.Width}";
               break;
             case ECutOrientation.Length:
-              fmt = $"(L) {strip.Width}";
+              fmt = $"Strip {stripNumber}: (L) {strip.Width}";
               break;
             default:
               throw new ArgumentOutOfRangeException("Unsupported orientation!");
           }
           Console.WriteLine(fmt);
+          Console.WriteLine("--------------------------------");
 
-          // Now show all of the cuts that we will make from the strip...
-          string sizes = string.Join(", ", (from x in strip.Cuts select x.Length));
-          Console.WriteLine($"\t{sizes}");
+          // Print all of the parts for a given strip....
+          foreach (var c in strip.Cuts)
+          {
+            ++partNumber;
+            string line = $"{partNumber}: {c.Name}: \t{c.Length}\t{c.Width}";
+            if (c.Width != strip.Width)
+            {
+              line += " *";
+            }
+            Console.WriteLine(line);
+          }
+
+          //// Now show all of the cuts that we will make from the strip...
+          //string sizes = string.Join(", ", (from x in strip.Cuts select x.Length));
+          //Console.WriteLine($"\t{sizes}");
 
         }
 
