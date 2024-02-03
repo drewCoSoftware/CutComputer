@@ -29,7 +29,10 @@ namespace CutComputer
     // --------------------------------------------------------------------------------------------------------------------------
     static void Main(string[] args)
     {
-      Console.WriteLine("Hello, World!");
+
+      ComputeAndPrint2x4CutList();
+      return;
+
 
       // NOTE: Cut lists should be broken up into groups based on the nominal size.
 
@@ -133,8 +136,6 @@ namespace CutComputer
 
       }
     }
-
-
 
     // --------------------------------------------------------------------------------------------------------------------------
     /// <summary>
@@ -362,24 +363,24 @@ namespace CutComputer
     /// <summary>
     /// Example of how we might represent some parts to be created from  2x4s.
     /// </summary>
-    private static void ComputeAndPrintCutList()
+    private static void ComputeAndPrint2x4CutList()
     {
       // The 'CutItems' listed here are 2x4.  It would be useful to be able to represent
       // that in the data somehow.
       // NOTE: 'CutItem' isn't really a great name....
       var cuts = new List<CutItem>()
       {
-        new CutItem(58, 2),
-        new CutItem(10, 2),
-        new CutItem(16.5m, 6),
-        new CutItem(60.5m, 2),
-        new CutItem(41, 2),
-        new CutItem(25, 2),
-        new CutItem(11.5m, 2),
-        new CutItem(10.5m, 2),
-        new CutItem(8.5m, 2),
-        new CutItem(12, 2),
-        new CutItem(20.5m, 10)
+        CutItem.From2x4(58, 2),
+        CutItem.From2x4(10, 2),
+        CutItem.From2x4(16.5m, 6),
+        CutItem.From2x4(60.5m, 2),
+        CutItem.From2x4(41, 2),
+        CutItem.From2x4(25, 2),
+        CutItem.From2x4(11.5m, 2),
+        CutItem.From2x4(10.5m, 2),
+        CutItem.From2x4(8.5m, 2),
+        CutItem.From2x4(12, 2),
+        CutItem.From2x4(20.5m, 10)
       };
 
       int sum = (from x in cuts select x.Quantity).Sum();
@@ -463,7 +464,7 @@ namespace CutComputer
           }
         }
 
-        res.Cuts.Add(new CutItem(x.Length, useCount)
+        res.Cuts.Add(new CutItem(x.Length, x.Width, x.Name, useCount)
         {
           Name = x.Name
         });
@@ -555,7 +556,14 @@ namespace CutComputer
   public class CutItem
   {
     // --------------------------------------------------------------------------------------------------------------------------
-    public CutItem(decimal length_, decimal width_, string name_ = null, int qty_ = 1)
+    public static CutItem From2x4(decimal length, int qty, string? name = null)
+    {
+      var res = new CutItem(length, Program._2x4_WIDTH, name, qty);
+      return res;
+    }
+
+    // --------------------------------------------------------------------------------------------------------------------------
+    public CutItem(decimal length_, decimal width_, string? name_ = null, int qty_ = 1)
     {
       Length = length_;
       Width = width_;
