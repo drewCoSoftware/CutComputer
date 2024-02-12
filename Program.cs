@@ -30,8 +30,8 @@ namespace CutComputer
     static void Main(string[] args)
     {
 
-      ComputeAndPrint2x4CutList();
-      return;
+      //ComputeAndPrint2x4CutList();
+      //return;
 
 
       // NOTE: Cut lists should be broken up into groups based on the nominal size.
@@ -49,32 +49,55 @@ namespace CutComputer
       // This is analogous to getting lengths from 2x4 lumber, which has its fixed dimensions
       // of 1.5"x3/5" for its width/thickness(height).
 
-      var drawerParts = new List<PlywoodPart>()
+      //// TODO: Use this for a test case.  The computed cuts come back with one extra part (F FrontBack).
+      //// It also lists an empty strip on sheet #1
+      //const decimal DRAWER_DEPTH = 27.0m;
+      //var drawerParts = new List<PlywoodPart>()
+      //{
+      //  new PlywoodPart("B,C,E Front/Back", 15,16.5m, 6),
+      //  new PlywoodPart("F Front/Back", 8.5m, 6, 2),
+      //  new PlywoodPart("D Front/Back", 8.5m,8, 2),
+      //  new PlywoodPart("A Front/Back", 10.5m,9, 2),
+
+      //  new PlywoodPart("B,C,E Sides", 16.5m, DRAWER_DEPTH, 6),
+      //  new PlywoodPart("F Sides", 6,DRAWER_DEPTH, 2),
+      //  new PlywoodPart("D Sides", 8,DRAWER_DEPTH, 2),
+      //  new PlywoodPart("A Sides", 9,DRAWER_DEPTH, 2),
+
+      //  new PlywoodPart("B,C,E Face", 17,18, 3),
+      //  new PlywoodPart("F Face", 10.5m,7.5m, 1),
+      //  new PlywoodPart("D Face", 10.5m,7.5m, 1),
+      //  new PlywoodPart("A Face", 12.5m, 10.5m, 1),
+      //};
+      //// NOTE: If we had some exsting bits of plywood, we could pass them
+      //// into the function for consideration in the search space.
+      //// Flagging them ahead of time as 'scrap' would be useful in an organizational sense.
+      //var plywoodCuts = ComputeCutList(drawerParts);
+
+      //// NOTE: ComputeCutList is providing some extra parts + adding empty strips.....
+      //PrintCutList(plywoodCuts);
+
+      // TODO: Use this for a test case.  The computed cuts come back with one extra part (F FrontBack).
+      // It also lists an empty strip on sheet #1
+      const decimal BOTTOM_DEPTH = 27.5m;
+      var drawerBottoms = new List<PlywoodPart>()
       {
-        new PlywoodPart("B,C,E Front/Back", 15,16.5m, 6),
-        new PlywoodPart("F Front/Back", 8.5m, 6, 2),
-        new PlywoodPart("D Front/Back", 8.5m,8, 2),
-        new PlywoodPart("A Front/Back", 10.5m,9, 2),
-
-        new PlywoodPart("B,C,E Sides", 16.5m, 26, 6),
-        new PlywoodPart("F Sides", 6,26, 2),
-        new PlywoodPart("D Sides", 8,26, 2),
-        new PlywoodPart("A Sides", 9,26, 2),
-
-        new PlywoodPart("B,C,E Face", 17,18, 3),
-        new PlywoodPart("F Face", 10.5m,7.5m, 1),
-        new PlywoodPart("D Face", 10.5m,7.5m, 1),
-        new PlywoodPart("A Face", 12.5m, 10.5m, 1),
-
+        new PlywoodPart("A Bottom", 10, BOTTOM_DEPTH, 1),
+        new PlywoodPart("B,C,E Bottom", 14.5m, BOTTOM_DEPTH, 3),
+        new PlywoodPart("D Bottom", 8.0m,BOTTOM_DEPTH, 1),
+        new PlywoodPart("F Bottom", 8.0m,BOTTOM_DEPTH, 1),
       };
-
-
-
       // NOTE: If we had some exsting bits of plywood, we could pass them
       // into the function for consideration in the search space.
       // Flagging them ahead of time as 'scrap' would be useful in an organizational sense.
-      var plywoodCuts = ComputeCutList(drawerParts);
+      var plywoodCuts = ComputeCutList(drawerBottoms);
+
+      // NOTE: ComputeCutList is providing some extra parts + adding empty strips.....
       PrintCutList(plywoodCuts);
+
+
+
+
 
       // SUPER TODO:
       // Leverage ShapeEngine or similar to create an interactive display!
@@ -85,6 +108,33 @@ namespace CutComputer
     // --------------------------------------------------------------------------------------------------------------------------
     private static void PrintCutList(List<SheetSpec> sheetSpecs)
     {
+      // TODO: Come up with a way to indicate parts that have the same name + dimensions in the printed list.
+      // For example, if there are two instances of "Part A", they will be listed as "Part A (1 of 2)", etc.
+      // Parts with a single quantity will not get the 'x of x' information adde to them.
+      // --> It is possible for two parts to have the same name, but different dimensions.  We might want to find a way to diambiguate
+      // those while we are at it.
+      // --> It might make even more sense yet to run a function before 'PrintCutList' that does all of the naming/numbering mentioned above....
+
+      //var nameToPartCount = new Dictionary<string, int>();
+
+      //// All of the parts that have a shared name.
+      //// For example (widget A with a qty of 3 will appear in the set, whereas widget B with a qty of 1 will not).
+      //var multiPartNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+      //var allNames = new List<string>();
+      //foreach (var spec in sheetSpecs)
+      //{
+      //  foreach (var strip in spec.Strips)
+      //  {
+      //    foreach (var p in strip.Cuts)
+      //    {
+      //      if (!string.IsNullOrWhiteSpace(
+      //      allNames.Add(p.Name);
+      //    }
+      //  }
+
+      //}
+
+
       int partNumber = 0;
 
       int index = 0;
